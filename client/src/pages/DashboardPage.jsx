@@ -4,6 +4,14 @@ import { RemoteControlCard } from '../components/RemoteControlCard'
 import { Sidebar } from '../components/Sidebar'
 
 export function DashboardPage({ remoteControl }) {
+  const showStopButton = [
+    'requesting',
+    'connecting',
+    'connected',
+    'controlling',
+    'pending_accept',
+  ].includes(remoteControl.state)
+
   return (
     <div className="app-container">
       <LoginModal
@@ -27,6 +35,11 @@ export function DashboardPage({ remoteControl }) {
             <strong>{remoteControl.statusText}</strong>
             {remoteControl.error?.message ? <span>{remoteControl.error.message}</span> : null}
           </div>
+          {showStopButton ? (
+            <button className="disconnect-btn" onClick={remoteControl.disconnect}>
+              停止连接
+            </button>
+          ) : null}
           {remoteControl.state === 'disconnected' ? (
             <button className="secondary-btn" onClick={remoteControl.resetForNextSession}>
               恢复待连接状态

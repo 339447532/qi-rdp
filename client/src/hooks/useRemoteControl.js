@@ -163,7 +163,9 @@ export function useRemoteControl() {
   })
 
   const videoRef = useRef(null)
-  const session = useSessionState()
+  const session = useSessionState({
+    autoCreateHostSession: !isControllerWindow && !isOverlayWindow,
+  })
   const { hostCode, syncUser } = session
   const clipboardLoopGuardRef = useRef('')
   const incomingFilesRef = useRef(new Map())

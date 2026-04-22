@@ -84,6 +84,11 @@ function MainApp() {
           <span className="controller-pending__eyebrow">控制窗口</span>
           <strong>{remoteControl.statusText}</strong>
           <p>正在等待受控端确认并建立远程控制连接，连接成功后会自动显示远程桌面。</p>
+          <div className="controller-pending__actions">
+            <button className="disconnect-btn" onClick={remoteControl.disconnect}>
+              停止连接
+            </button>
+          </div>
         </div>
       </div>
     )

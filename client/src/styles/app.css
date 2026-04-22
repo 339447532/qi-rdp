@@ -946,6 +946,12 @@ button {
   line-height: 1.6;
 }
 
+.controller-pending__actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 900px) {
   .app-container {
     flex-direction: column;

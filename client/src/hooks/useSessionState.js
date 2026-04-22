@@ -15,7 +15,8 @@ function mapError(error) {
   }
 }
 
-export function useSessionState() {
+export function useSessionState(options = {}) {
+  const { autoCreateHostSession = true } = options
   const [state, setState] = useState(SESSION_STATES.IDLE)
   const [role, setRole] = useState(null)
   const [hostCode, setHostCode] = useState('')
@@ -50,7 +51,9 @@ export function useSessionState() {
 
   useEffect(() => {
     const handleConnect = () => {
-      createHostSession()
+      if (autoCreateHostSession) {
+        createHostSession()
+      }
     }
 
     const handleDisconnect = () => {
@@ -85,7 +88,7 @@ export function useSessionState() {
       sessionEvents.removeAllListeners()
       socket.disconnect()
     }
-  }, [createHostSession])
+  }, [autoCreateHostSession, createHostSession])
 
   useEffect(() => {
     const offState = sessionEvents.on(SERVER_EVENTS.SESSION_STATE, ({ code: nextCode, role: nextRole, state: nextState, session: nextSession }) => {
@@ -225,8 +228,15 @@ export function useSessionState() {
     setRemoteId(null)
     setSessionMeta(null)
     setError(null)
-    createHostSession()
-  }, [createHostSession])
+    if (autoCreateHostSession) {
+      createHostSession()
+    } else {
+      setState(SESSION_STATES.IDLE)
+      setRole(null)
+      setHostCode('')
+      setActiveCode('')
+    }
+  }, [autoCreateHostSession, createHostSession])
 
   const syncUser = useCallback((payload) => {
     socket.emit(CLIENT_EVENTS.USER_SYNC, payload, (response) => {
