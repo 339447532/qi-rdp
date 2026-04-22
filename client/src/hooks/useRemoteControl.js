@@ -471,6 +471,13 @@ export function useRemoteControl() {
     }
 
     if (
+      session.state === SESSION_STATES.CONNECTED ||
+      session.state === SESSION_STATES.CONTROLLING
+    ) {
+      window.electron?.window?.showCurrent?.()
+    }
+
+    if (
       session.state === SESSION_STATES.DISCONNECTED ||
       session.state === SESSION_STATES.ERROR
     ) {
@@ -584,7 +591,7 @@ export function useRemoteControl() {
         passcode: remoteCheckCode,
         shareAudio,
       })
-      setStatusHint(`控制窗口已打开，正在连接 ${formatCode(rawCode)}`)
+      setStatusHint(`已发起到 ${formatCode(rawCode)} 的连接请求，等待受控端确认`)
       return
     }
 

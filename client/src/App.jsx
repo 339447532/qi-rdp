@@ -66,15 +66,27 @@ function ControlledOverlayApp() {
 
 function MainApp() {
   const remoteControl = useRemoteControl()
+  const isControllerWindow = remoteControl.windowMode === 'controller'
 
   const showRemoteSession =
     remoteControl.role === ROLES.CONTROLLER &&
     (remoteControl.state === SESSION_STATES.CONNECTED ||
-      remoteControl.state === SESSION_STATES.CONTROLLING ||
-      remoteControl.state === SESSION_STATES.CONNECTING)
+      remoteControl.state === SESSION_STATES.CONTROLLING)
 
   if (showRemoteSession) {
     return <RemoteSessionPage remoteControl={remoteControl} />
+  }
+
+  if (isControllerWindow) {
+    return (
+      <div className="controller-pending">
+        <div className="controller-pending__card">
+          <span className="controller-pending__eyebrow">控制窗口</span>
+          <strong>{remoteControl.statusText}</strong>
+          <p>正在等待受控端确认并建立远程控制连接，连接成功后会自动显示远程桌面。</p>
+        </div>
+      </div>
+    )
   }
 
   return <DashboardPage remoteControl={remoteControl} />

@@ -19,20 +19,19 @@ export function RemoteSessionPage({ remoteControl }) {
   return (
     <div className="remote-view controller-view">
       <div className="remote-header remote-header--controller">
-        <div>
-          <strong>{statusText}</strong>
-          <span>
-            正在控制 {sessionMeta?.controlledUser?.name || '--'}，本机账号 {currentUser?.name || '--'}
-          </span>
+        <div className="remote-header__identity">
+          <div>
+            <strong>{sessionMeta?.controlledUser?.name || '--'}</strong>
+            <span>{statusText}</span>
+          </div>
+          <div className="remote-header__badges">
+            <span className="remote-pill">主控端 {currentUser?.name || '--'}</span>
+            <span className="remote-pill">远端 {remoteDisplay?.bounds?.width || '--'} × {remoteDisplay?.bounds?.height || '--'}</span>
+          </div>
         </div>
         <button className="disconnect-btn" onClick={disconnect}>
           断开连接
         </button>
-      </div>
-      <div className="remote-meta-bar">
-        <span>远端主屏：{remoteDisplay?.bounds?.width || '--'} × {remoteDisplay?.bounds?.height || '--'}</span>
-        <span>远端用户：{sessionMeta?.controlledUser?.name || '--'}</span>
-        <span>鼠标、滚轮、键盘控制已启用</span>
       </div>
       <div className="remote-toolbar">
         <button className="secondary-btn" onClick={handleSendClipboard}>
@@ -43,20 +42,22 @@ export function RemoteSessionPage({ remoteControl }) {
           <input type="file" hidden onChange={handleSendFile} />
         </label>
         <span className="remote-toolbar__hint">
-          {transferStatus || (clipboardText ? `最近同步剪贴板：${clipboardText.slice(0, 32)}` : '剪贴板双向同步已启用')}
+          {transferStatus || (clipboardText ? `最近同步剪贴板：${clipboardText.slice(0, 32)}` : '键盘、鼠标、滚轮与双向剪贴板已启用')}
         </span>
       </div>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className="remote-video"
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onWheel={handleWheel}
-        onContextMenu={(event) => event.preventDefault()}
-      />
+      <div className="remote-stage">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="remote-video"
+          onMouseMove={handleMouseMove}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onWheel={handleWheel}
+          onContextMenu={(event) => event.preventDefault()}
+        />
+      </div>
     </div>
   )
 }

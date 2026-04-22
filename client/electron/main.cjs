@@ -125,6 +125,8 @@ function createControllerWindow(payload = {}) {
     minHeight: 600,
     autoHideMenuBar: true,
     show: false,
+    title: 'Qi RDP 控制窗口',
+    backgroundColor: '#090b11',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -134,6 +136,11 @@ function createControllerWindow(payload = {}) {
 
   controllerWindow.on('close', async (event) => {
     if (controllerWindowAllowClose) {
+      return
+    }
+
+    if (!controllerWindow?.isVisible()) {
+      controllerWindowAllowClose = true
       return
     }
 
@@ -156,7 +163,6 @@ function createControllerWindow(payload = {}) {
     focusedWindow?.close()
   })
 
-  controllerWindow.once('ready-to-show', () => controllerWindow?.show())
   controllerWindow.on('closed', () => {
     controllerWindow = null
     controllerWindowAllowClose = false
@@ -533,6 +539,13 @@ app.whenReady().then(() => {
       controllerWindowAllowClose = true
     }
     target?.close()
+    return { success: true }
+  })
+
+  ipcMain.handle('window:showCurrent', async (event) => {
+    const target = BrowserWindow.fromWebContents(event.sender)
+    target?.show()
+    target?.focus()
     return { success: true }
   })
 

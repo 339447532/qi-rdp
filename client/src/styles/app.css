@@ -670,9 +670,27 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 24px;
-  background: rgba(22, 24, 28, 0.96);
+  gap: 16px;
+  padding: 14px 18px;
+  background: rgba(10, 12, 18, 0.94);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.remote-header__identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.remote-header__badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .remote-header--controller strong,
@@ -681,13 +699,25 @@ button {
 }
 
 .remote-header--controller strong {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .remote-header--controller span {
   margin-top: 4px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.68);
+}
+
+.remote-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .disconnect-btn {
@@ -698,21 +728,12 @@ button {
   cursor: pointer;
 }
 
-.remote-meta-bar {
-  display: flex;
-  gap: 18px;
-  padding: 10px 24px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .remote-toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.02);
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -730,11 +751,20 @@ button {
 }
 
 .remote-video {
-  flex: 1;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: #050607;
+}
+
+.remote-stage {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 30%),
+    #050607;
 }
 
 .controlled-view {
@@ -874,6 +904,48 @@ button {
   font-weight: 600;
 }
 
+.controller-pending {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top, rgba(255, 77, 106, 0.14), transparent 28%),
+    linear-gradient(180deg, #0c0f14 0%, #0a0c11 100%);
+  color: #fff;
+}
+
+.controller-pending__card {
+  width: min(420px, calc(100vw - 48px));
+  padding: 28px;
+  border-radius: 24px;
+  background: rgba(18, 22, 30, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34);
+}
+
+.controller-pending__eyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+}
+
+.controller-pending__card strong {
+  display: block;
+  font-size: 24px;
+}
+
+.controller-pending__card p {
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.6;
+}
+
 @media (max-width: 900px) {
   .app-container {
     flex-direction: column;
@@ -893,7 +965,6 @@ button {
   .request-card,
   .control-input-group,
   .request-card__actions,
-  .remote-meta-bar,
   .remote-toolbar,
   .remote-meta-grid {
     flex-direction: column;
