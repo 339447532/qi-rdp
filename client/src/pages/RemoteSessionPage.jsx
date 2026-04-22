@@ -1,6 +1,5 @@
 export function RemoteSessionPage({ remoteControl }) {
   const {
-    role,
     sessionMeta,
     clipboardText,
     disconnect,
@@ -14,49 +13,18 @@ export function RemoteSessionPage({ remoteControl }) {
     statusText,
     transferStatus,
     remoteDisplay,
-    localDisplay,
+    currentUser,
   } = remoteControl
-  const isControlled = role === 'controlled'
-
-  if (isControlled) {
-    return (
-      <div className="remote-view controlled-view">
-        <div className="remote-header">
-          <span>{statusText}</span>
-          <button className="disconnect-btn" onClick={disconnect}>
-            停止共享
-          </button>
-        </div>
-        <div className="sharing-panel">
-          <div className="sharing-status">
-            <div className="status-indicator streaming"></div>
-            <span>屏幕共享中，主控端已获得操作权限</span>
-          </div>
-          <div className="remote-meta-grid">
-            <div className="remote-meta-card">
-              <span>当前状态</span>
-              <strong>{statusText}</strong>
-            </div>
-            <div className="remote-meta-card">
-              <span>主屏分辨率</span>
-              <strong>
-                {localDisplay?.bounds?.width || '--'} × {localDisplay?.bounds?.height || '--'}
-              </strong>
-            </div>
-            <div className="remote-meta-card">
-              <span>当前账号</span>
-              <strong>{sessionMeta?.controlledUser?.name || '--'}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
-    <div className="remote-view">
-      <div className="remote-header">
-        <span>{statusText}</span>
+    <div className="remote-view controller-view">
+      <div className="remote-header remote-header--controller">
+        <div>
+          <strong>{statusText}</strong>
+          <span>
+            正在控制 {sessionMeta?.controlledUser?.name || '--'}，本机账号 {currentUser?.name || '--'}
+          </span>
+        </div>
         <button className="disconnect-btn" onClick={disconnect}>
           断开连接
         </button>
@@ -87,6 +55,7 @@ export function RemoteSessionPage({ remoteControl }) {
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
+        onContextMenu={(event) => event.preventDefault()}
       />
     </div>
   )

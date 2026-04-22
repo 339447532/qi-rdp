@@ -33,6 +33,10 @@ body {
   background-color: var(--bg-main);
 }
 
+body.overlay-window-body {
+  background: transparent;
+}
+
 button,
 input {
   font: inherit;
@@ -656,6 +660,12 @@ button {
   flex-direction: column;
 }
 
+.controller-view {
+  background:
+    radial-gradient(circle at top right, rgba(255, 77, 106, 0.16), transparent 34%),
+    linear-gradient(180deg, #0d1016 0%, #090b11 100%);
+}
+
 .remote-header {
   display: flex;
   align-items: center;
@@ -663,6 +673,21 @@ button {
   padding: 18px 24px;
   background: rgba(22, 24, 28, 0.96);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.remote-header--controller strong,
+.remote-header--controller span {
+  display: block;
+}
+
+.remote-header--controller strong {
+  font-size: 15px;
+}
+
+.remote-header--controller span {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .disconnect-btn {
@@ -763,6 +788,90 @@ button {
   margin-top: 8px;
   font-size: 24px;
   color: #fff;
+}
+
+.controlled-overlay {
+  width: 100vw;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(24, 29, 37, 0.96), rgba(11, 14, 19, 0.92)),
+    rgba(12, 14, 18, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  -webkit-app-region: drag;
+}
+
+.controlled-overlay button {
+  -webkit-app-region: no-drag;
+}
+
+.controlled-overlay.collapsed {
+  min-height: 64px;
+  justify-content: center;
+  padding: 8px 10px;
+}
+
+.controlled-overlay__toggle {
+  align-self: flex-end;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.controlled-overlay__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controlled-overlay__status strong,
+.controlled-overlay__status span,
+.controlled-overlay__summary strong {
+  display: block;
+}
+
+.controlled-overlay__status strong,
+.controlled-overlay__summary strong {
+  font-size: 13px;
+}
+
+.controlled-overlay__status span,
+.controlled-overlay__meta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.controlled-overlay__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controlled-overlay__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.controlled-overlay__stop {
+  width: 100%;
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, #ff5f78, #ff4068);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {

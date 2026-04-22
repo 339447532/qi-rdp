@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { commands, SYSTEM_COMMANDS } from '../lib/controlProtocol'
 import { CONTROL_COMMANDS, ROLES, SESSION_STATES } from '../lib/protocol'
 import { usePeerSession } from './usePeerSession'
@@ -16,6 +16,7 @@ import {
 import { setSocketAuthToken, socket } from '../socket'
 
 const FILE_CHUNK_SIZE = 48 * 1024
+const FILE_CHUNK_DELAY = 8
 
 function getButtonName(button = 0) {
   if (button === 1) return 'middle'
@@ -126,17 +127,29 @@ function createTransferId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
 export function useRemoteControl() {
+  const searchParams = new URLSearchParams(window.location.search)
+  const windowMode = searchParams.get('window') || 'main'
+  const autoConnectCode = searchParams.get('code') || ''
+  const autoConnectPasscode = searchParams.get('passcode') || ''
+  const autoConnectAudio = searchParams.get('audio') === '1'
+  const isControllerWindow = windowMode === 'controller'
+  const isOverlayWindow = windowMode === 'controlled-overlay'
+
   const [controlMode, setControlMode] = useState('desktop')
-  const [remoteCode, setRemoteCode] = useState('')
-  const [remoteCheckCode, setRemoteCheckCode] = useState('')
+  const [remoteCode, setRemoteCode] = useState(() => formatCode(autoConnectCode))
+  const [remoteCheckCode, setRemoteCheckCode] = useState(autoConnectPasscode)
   const [showLogin, setShowLogin] = useState(false)
   const [showPasscodeMenu, setShowPasscodeMenu] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [myPassword, setMyPassword] = useState('123456')
   const [passcodeType, setPasscodeType] = useState('single')
   const [requireAuth, setRequireAuth] = useState(false)
-  const [shareAudio, setShareAudio] = useState(true)
+  const [shareAudio, setShareAudio] = useState(autoConnectCode ? autoConnectAudio : true)
   const [statusHint, setStatusHint] = useState('')
   const [remoteDisplay, setRemoteDisplay] = useState(null)
   const [localDisplay, setLocalDisplay] = useState(null)
@@ -154,6 +167,7 @@ export function useRemoteControl() {
   const { hostCode, syncUser } = session
   const clipboardLoopGuardRef = useRef('')
   const incomingFilesRef = useRef(new Map())
+  const autoConnectStartedRef = useRef(false)
 
   const peer = usePeerSession({
     onData: async (payload) => {
@@ -197,6 +211,13 @@ export function useRemoteControl() {
       if (payload.type === CONTROL_COMMANDS.FILE_TRANSFER_COMPLETE) {
         const entry = incomingFilesRef.current.get(payload.transferId)
         if (!entry) return
+
+        const receivedChunks = entry.chunks.filter(Boolean).length
+        if (receivedChunks !== payload.totalChunks) {
+          incomingFilesRef.current.delete(payload.transferId)
+          setTransferStatus(`接收 ${entry.file?.name || '文件'} 失败，分片不完整`)
+          return
+        }
 
         const contentBase64 = entry.chunks.join('')
         const result = await window.electron?.file?.saveIncoming?.({
@@ -249,6 +270,10 @@ export function useRemoteControl() {
   })
 
   useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
     const token = authState?.token || ''
     setSocketAuthToken(token)
     if (!socket.connected) {
@@ -257,9 +282,13 @@ export function useRemoteControl() {
 
     socket.disconnect()
     socket.connect()
-  }, [authState?.token])
+  }, [authState?.token, isOverlayWindow])
 
   useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
     syncUser({
       user: currentUser,
       passcode: {
@@ -270,9 +299,13 @@ export function useRemoteControl() {
         requireAuth,
       },
     })
-  }, [currentUser, hostCode, myPassword, passcodeType, requireAuth, syncUser])
+  }, [currentUser, hostCode, isOverlayWindow, myPassword, passcodeType, requireAuth, syncUser])
 
   useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
     if (!authState?.token) {
       return undefined
     }
@@ -294,9 +327,13 @@ export function useRemoteControl() {
     return () => {
       cancelled = true
     }
-  }, [authState?.token])
+  }, [authState?.token, isOverlayWindow])
 
   useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
     if (!authState?.token) {
       return undefined
     }
@@ -312,7 +349,7 @@ export function useRemoteControl() {
     }, 15000)
 
     return () => window.clearInterval(timer)
-  }, [authState?.token])
+  }, [authState?.token, isOverlayWindow])
 
   const stateLabels = {
     [SESSION_STATES.WAITING]: '等待伙伴连接',
@@ -327,6 +364,10 @@ export function useRemoteControl() {
   const statusText = transferStatus || statusHint || stateLabels[session.state] || '等待连接'
 
   useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
     if (session.state !== SESSION_STATES.CONNECTING || !session.remoteId) {
       return
     }
@@ -360,9 +401,13 @@ export function useRemoteControl() {
 
     peer.initAsReceiver(session.remoteId)
     return undefined
-  }, [peer, session.remoteId, session.role, session.state, shareAudio])
+  }, [isOverlayWindow, peer, session.remoteId, session.role, session.state, shareAudio])
 
   useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
     if (
       (session.role !== ROLES.CONTROLLER && session.role !== ROLES.CONTROLLED) ||
       (session.state !== SESSION_STATES.CONTROLLING && session.state !== SESSION_STATES.CONNECTED)
@@ -383,9 +428,13 @@ export function useRemoteControl() {
     }, 1200)
 
     return () => window.clearInterval(timer)
-  }, [clipboardText, peer, session.role, session.state])
+  }, [clipboardText, isOverlayWindow, peer, session.role, session.state])
 
   useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
     if (session.role !== ROLES.CONTROLLER || session.state !== SESSION_STATES.CONTROLLING) {
       return undefined
     }
@@ -405,7 +454,90 @@ export function useRemoteControl() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [peer, session.role, session.state])
+  }, [isOverlayWindow, peer, session.role, session.state])
+
+  useEffect(() => {
+    if (!isControllerWindow || autoConnectStartedRef.current || !autoConnectCode) {
+      return
+    }
+
+    autoConnectStartedRef.current = true
+    session.joinSession(autoConnectCode, autoConnectPasscode)
+  }, [autoConnectAudio, autoConnectCode, autoConnectPasscode, isControllerWindow, session])
+
+  useEffect(() => {
+    if (!isControllerWindow) {
+      return undefined
+    }
+
+    if (
+      session.state === SESSION_STATES.DISCONNECTED ||
+      session.state === SESSION_STATES.ERROR
+    ) {
+      window.electron?.window?.closeCurrent?.()
+    }
+
+    return undefined
+  }, [isControllerWindow, session.state])
+
+  const disconnect = useCallback(() => {
+    peer.cleanup()
+    session.leaveSession()
+    session.resetForNextSession()
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setRemoteDisplay(null)
+    setLocalDisplay(null)
+    setTransferStatus('')
+    setStatusHint('')
+    window.electron?.window?.closeControlledOverlay?.()
+  }, [peer, session])
+
+  useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
+    const off = window.electron?.window?.onOverlayDisconnectRequest?.(() => {
+      disconnect()
+    })
+
+    return () => off?.()
+  }, [disconnect, isOverlayWindow])
+
+  useEffect(() => {
+    if (isOverlayWindow) {
+      return undefined
+    }
+
+    const shouldShowOverlay =
+      session.role === ROLES.CONTROLLED &&
+      (session.state === SESSION_STATES.CONNECTED || session.state === SESSION_STATES.CONTROLLING)
+
+    if (!shouldShowOverlay) {
+      window.electron?.window?.closeControlledOverlay?.()
+      return undefined
+    }
+
+    window.electron?.window?.updateControlledOverlay?.({
+      collapsed: false,
+      statusText,
+      currentUser: session.sessionMeta?.controlledUser?.name || currentUser?.name || '访客用户',
+      displayText: `${localDisplay?.bounds?.width || '--'} × ${localDisplay?.bounds?.height || '--'}`,
+    })
+
+    return undefined
+  }, [
+    currentUser?.name,
+    isOverlayWindow,
+    localDisplay?.bounds?.height,
+    localDisplay?.bounds?.width,
+    session.role,
+    session.sessionMeta?.controlledUser?.name,
+    session.state,
+    statusText,
+  ])
 
   const handleRemoteCodeChange = (event) => {
     const digitsOnly = event.target.value.replace(/\D/g, '')
@@ -446,20 +578,17 @@ export function useRemoteControl() {
     const rawCode = unformatCode(remoteCode)
     if (!rawCode) return
 
-    session.joinSession(rawCode, remoteCheckCode)
-    setStatusHint('')
-  }
-
-  const disconnect = () => {
-    peer.cleanup()
-    session.leaveSession()
-    session.resetForNextSession()
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
+    if (windowMode === 'main') {
+      window.electron?.window?.openController?.({
+        code: rawCode,
+        passcode: remoteCheckCode,
+        shareAudio,
+      })
+      setStatusHint(`控制窗口已打开，正在连接 ${formatCode(rawCode)}`)
+      return
     }
-    setRemoteDisplay(null)
-    setLocalDisplay(null)
-    setTransferStatus('')
+
+    session.joinSession(rawCode, remoteCheckCode)
     setStatusHint('')
   }
 
@@ -470,6 +599,7 @@ export function useRemoteControl() {
   }
 
   const handleMouseDown = (event) => {
+    event.preventDefault()
     const position = getVideoPointerPosition(event)
     if (!position) return
 
@@ -478,6 +608,7 @@ export function useRemoteControl() {
   }
 
   const handleMouseUp = (event) => {
+    event.preventDefault()
     const position = getVideoPointerPosition(event)
     if (!position) return
 
@@ -549,9 +680,14 @@ export function useRemoteControl() {
       type: file.type,
     }))
 
+    setTransferStatus(`正在发送 ${file.name}...`)
+
     for (let index = 0; index < totalChunks; index += 1) {
       const chunk = base64.slice(index * FILE_CHUNK_SIZE, (index + 1) * FILE_CHUNK_SIZE)
       peer.sendData(commands.fileTransferChunk(transferId, chunk, index))
+      if (index < totalChunks - 1) {
+        await wait(FILE_CHUNK_DELAY)
+      }
     }
 
     peer.sendData(commands.fileTransferComplete(transferId, totalChunks))
@@ -560,6 +696,9 @@ export function useRemoteControl() {
 
   return {
     ...session,
+    windowMode,
+    isControllerWindow,
+    isOverlayWindow,
     controlMode,
     remoteCode,
     remoteCheckCode,

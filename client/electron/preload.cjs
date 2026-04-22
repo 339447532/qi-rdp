@@ -22,4 +22,22 @@ contextBridge.exposeInMainWorld('electron', {
     checkAccessibility: () => ipcRenderer.invoke('permission:checkAccessibility'),
     openSystemSettings: (permissionType) => ipcRenderer.invoke('permission:openSystemSettings', permissionType),
   },
+  window: {
+    openController: (payload) => ipcRenderer.invoke('window:openController', payload),
+    closeCurrent: () => ipcRenderer.invoke('window:closeCurrent'),
+    openControlledOverlay: () => ipcRenderer.invoke('window:openControlledOverlay'),
+    closeControlledOverlay: () => ipcRenderer.invoke('window:closeControlledOverlay'),
+    updateControlledOverlay: (payload) => ipcRenderer.invoke('window:updateControlledOverlay', payload),
+    requestDisconnectFromOverlay: () => ipcRenderer.send('overlay:request-disconnect'),
+    onOverlayDisconnectRequest: (callback) => {
+      const listener = () => callback?.()
+      ipcRenderer.on('overlay:disconnect-request', listener)
+      return () => ipcRenderer.removeListener('overlay:disconnect-request', listener)
+    },
+    onOverlayState: (callback) => {
+      const listener = (_, payload) => callback?.(payload)
+      ipcRenderer.on('overlay:state', listener)
+      return () => ipcRenderer.removeListener('overlay:state', listener)
+    },
+  },
 })

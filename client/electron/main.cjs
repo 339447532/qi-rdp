@@ -1,9 +1,22 @@
-const { app, BrowserWindow, clipboard, desktopCapturer, ipcMain, screen, shell, systemPreferences } = require('electron')
+const { app, BrowserWindow, clipboard, desktopCapturer, dialog, ipcMain, screen, shell, systemPreferences } = require('electron')
 const fs = require('fs/promises')
 const path = require('path')
 
 let robot
 let robotLoadError = null
+let mainWindow = null
+let controllerWindow = null
+let controlledOverlayWindow = null
+let controllerWindowAllowClose = false
+
+function getRendererUrl(search = '') {
+  const normalizedSearch = search ? `?${search}` : ''
+  if (process.env.NODE_ENV === 'development') {
+    return `http://localhost:5173/${normalizedSearch}`
+  }
+
+  return path.join(__dirname, `../dist/index.html${normalizedSearch}`)
+}
 
 function tryRequire(modulePath) {
   try {
@@ -57,10 +70,20 @@ function logError(message, error) {
   console.error(`[electron] ${message}`, error)
 }
 
+function loadRenderer(win, search = '') {
+  if (process.env.NODE_ENV === 'development') {
+    return win.loadURL(getRendererUrl(search))
+  }
+
+  return win.loadFile(path.join(__dirname, '../dist/index.html'), { search })
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
+    minWidth: 1080,
+    minHeight: 720,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -68,14 +91,127 @@ function createWindow() {
     },
   })
 
-  if (process.env.NODE_ENV === 'development') {
-    win.loadURL('http://localhost:5173')
-    win.webContents.openDevTools()
-  } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'))
-  }
+  loadRenderer(win)
 
   return win
+}
+
+function positionControlledOverlay(win) {
+  const display = screen.getPrimaryDisplay()
+  const workArea = display.workArea
+  const [width, height] = win.getSize()
+  const x = Math.round(workArea.x + workArea.width - width - 18)
+  const y = Math.round(workArea.y + workArea.height - height - 18)
+  win.setPosition(x, y)
+}
+
+function createControllerWindow(payload = {}) {
+  if (controllerWindow && !controllerWindow.isDestroyed()) {
+    controllerWindow.focus()
+    return controllerWindow
+  }
+
+  const search = new URLSearchParams({
+    window: 'controller',
+    code: payload.code || '',
+    passcode: payload.passcode || '',
+    audio: payload.shareAudio ? '1' : '0',
+  }).toString()
+
+  controllerWindow = new BrowserWindow({
+    width: 1380,
+    height: 860,
+    minWidth: 920,
+    minHeight: 600,
+    autoHideMenuBar: true,
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
+    },
+  })
+
+  controllerWindow.on('close', async (event) => {
+    if (controllerWindowAllowClose) {
+      return
+    }
+
+    event.preventDefault()
+    const focusedWindow = controllerWindow
+    const { response } = await dialog.showMessageBox(focusedWindow, {
+      type: 'question',
+      buttons: ['取消', '断开连接并关闭'],
+      defaultId: 1,
+      cancelId: 0,
+      title: '断开远程连接',
+      message: '关闭控制窗口会断开当前远程连接，是否继续？',
+    })
+
+    if (response === 0) {
+      return
+    }
+
+    controllerWindowAllowClose = true
+    focusedWindow?.close()
+  })
+
+  controllerWindow.once('ready-to-show', () => controllerWindow?.show())
+  controllerWindow.on('closed', () => {
+    controllerWindow = null
+    controllerWindowAllowClose = false
+  })
+
+  loadRenderer(controllerWindow, search)
+  return controllerWindow
+}
+
+function createControlledOverlayWindow() {
+  if (controlledOverlayWindow && !controlledOverlayWindow.isDestroyed()) {
+    controlledOverlayWindow.show()
+    controlledOverlayWindow.focus()
+    positionControlledOverlay(controlledOverlayWindow)
+    return controlledOverlayWindow
+  }
+
+  controlledOverlayWindow = new BrowserWindow({
+    width: 280,
+    height: 112,
+    minWidth: 220,
+    minHeight: 64,
+    maxWidth: 320,
+    maxHeight: 132,
+    frame: false,
+    resizable: false,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    transparent: true,
+    hasShadow: true,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
+    },
+  })
+
+  controlledOverlayWindow.once('ready-to-show', () => {
+    if (!controlledOverlayWindow) return
+    positionControlledOverlay(controlledOverlayWindow)
+    controlledOverlayWindow.showInactive()
+  })
+
+  controlledOverlayWindow.on('closed', () => {
+    controlledOverlayWindow = null
+  })
+
+  loadRenderer(controlledOverlayWindow, 'window=controlled-overlay')
+  return controlledOverlayWindow
 }
 
 function buildPermissionResult({
@@ -310,11 +446,11 @@ async function saveIncomingFile(file) {
 }
 
 app.whenReady().then(() => {
-  createWindow()
+  mainWindow = createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+      mainWindow = createWindow()
     }
   })
 
@@ -383,6 +519,45 @@ app.whenReady().then(() => {
     } catch (error) {
       logError('Failed to open system settings', error)
       return { success: false, message: error.message || '打开系统设置失败。' }
+    }
+  })
+
+  ipcMain.handle('window:openController', async (_, payload) => {
+    createControllerWindow(payload)
+    return { success: true }
+  })
+
+  ipcMain.handle('window:closeCurrent', async (event) => {
+    const target = BrowserWindow.fromWebContents(event.sender)
+    if (target === controllerWindow) {
+      controllerWindowAllowClose = true
+    }
+    target?.close()
+    return { success: true }
+  })
+
+  ipcMain.handle('window:openControlledOverlay', async () => {
+    createControlledOverlayWindow()
+    return { success: true }
+  })
+
+  ipcMain.handle('window:closeControlledOverlay', async () => {
+    if (controlledOverlayWindow && !controlledOverlayWindow.isDestroyed()) {
+      controlledOverlayWindow.close()
+    }
+    return { success: true }
+  })
+
+  ipcMain.handle('window:updateControlledOverlay', async (_, payload) => {
+    const overlay = createControlledOverlayWindow()
+    overlay.webContents.send('overlay:state', payload)
+    positionControlledOverlay(overlay)
+    return { success: true }
+  })
+
+  ipcMain.on('overlay:request-disconnect', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('overlay:disconnect-request')
     }
   })
 })
