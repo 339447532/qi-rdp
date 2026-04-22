@@ -12,17 +12,17 @@ export function LoginModal({ open, onClose, onSubmit, currentUser }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(event) => event.stopPropagation()}>
         <h2>用户身份</h2>
-        <div className="mode-selection">
-          <label className={`radio-label ${mode === 'login' ? 'selected' : ''}`}>
+        <div className="auth-mode-tabs" role="tablist" aria-label="登录或注册">
+          <label className={`auth-mode-tab ${mode === 'login' ? 'selected' : ''}`}>
             <input type="radio" checked={mode === 'login'} onChange={() => setMode('login')} />
             <span>登录</span>
           </label>
-          <label className={`radio-label ${mode === 'register' ? 'selected' : ''}`}>
+          <label className={`auth-mode-tab ${mode === 'register' ? 'selected' : ''}`}>
             <input type="radio" checked={mode === 'register'} onChange={() => setMode('register')} />
             <span>注册</span>
           </label>
         </div>
-        <div className="input-group">
+        <div className="auth-form">
           {mode === 'register' ? (
             <input
               type="text"

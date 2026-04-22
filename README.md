@@ -23,8 +23,7 @@ Server will run on `http://localhost:3000`.
 ```bash
 cd client
 npm install
-# Rebuild native modules (robotjs) for Electron
-npm run rebuild # (If script added, otherwise use npx electron-rebuild -f -w robotjs)
+npm run rebuild # Rebuild native modules (robotjs) for Electron when needed
 npm run dev
 ```
 This will launch the Electron application.
@@ -38,3 +37,4 @@ This will launch the Electron application.
 ## Notes
 - `robotjs` requires native compilation. If you encounter errors, ensure you have build tools installed and run `npx electron-rebuild -f -w robotjs` inside `client` directory.
 - The app uses `simple-peer` for WebRTC.
+- On Windows, if the app shows "未能加载 robotjs", install Visual Studio Build Tools with `Desktop development with C++`, then rerun `cd client && npm install && npm run rebuild`.

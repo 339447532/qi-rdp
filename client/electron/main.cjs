@@ -3,10 +3,50 @@ const fs = require('fs/promises')
 const path = require('path')
 
 let robot
-try {
-  robot = require('robotjs')
-} catch (error) {
-  console.error('Failed to load robotjs in Main Process:', error)
+let robotLoadError = null
+
+function tryRequire(modulePath) {
+  try {
+    return require(modulePath)
+  } catch (error) {
+    robotLoadError = error
+    return null
+  }
+}
+
+function loadRobot() {
+  const candidates = [
+    'robotjs',
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', 'node_modules', 'robotjs'),
+    path.join(__dirname, '..', 'node_modules', 'robotjs'),
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    const loaded = tryRequire(candidate)
+    if (loaded) {
+      return loaded
+    }
+  }
+
+  return null
+}
+
+robot = loadRobot()
+
+if (!robot) {
+  console.error('Failed to load robotjs in Main Process:', robotLoadError)
+}
+
+function getRobotUnavailableMessage() {
+  if (process.platform === 'win32') {
+    return 'Windows 未能加载 robotjs。请在 client 目录执行 npm install 后运行 npm run rebuild；如果仍失败，请安装 Visual Studio Build Tools（Desktop development with C++）。'
+  }
+
+  if (process.platform === 'darwin') {
+    return '当前环境未能加载 robotjs，请在 client 目录执行 npm install 后运行 npm run rebuild。'
+  }
+
+  return '当前环境未能加载 robotjs，请在 client 目录执行 npm install 后运行 npm run rebuild。'
 }
 
 function logInfo(message, payload) {
@@ -138,7 +178,7 @@ function checkAccessibilityPermission() {
     supported: Boolean(robot),
     message: robot
       ? '当前平台无需单独系统授权，但仍可能受系统策略限制。'
-      : '当前环境未能加载 robotjs，无法执行远程输入控制。',
+      : getRobotUnavailableMessage(),
   })
 }
 
@@ -205,7 +245,7 @@ function mapNormalizedPosition(x = 0, y = 0) {
 
 function executeRemoteControl(command) {
   if (!robot) {
-    return { success: false, error: 'CONTROL_UNAVAILABLE', message: 'robotjs 未加载，无法执行远程控制。' }
+    return { success: false, error: 'CONTROL_UNAVAILABLE', message: getRobotUnavailableMessage() }
   }
 
   try {

@@ -28,6 +28,9 @@ export function PermissionGate({ children, blocking = true }) {
 
   if (missingPermissions.length > 0) {
     const primaryPermission = missingPermissions[0]?.openTarget || 'privacy'
+    const missingIsNativeModule = missingPermissions.some(
+      (permission) => permission.key === 'accessibility' && permission.supported === false,
+    )
     const helperMessage =
       platform === 'darwin'
         ? `请到系统设置中为本应用开启 ${missingPermissions.map((item) => item.label).join('、')}。`
@@ -36,8 +39,8 @@ export function PermissionGate({ children, blocking = true }) {
     const modal = (
       <div className="permission-modal-overlay">
         <div className="permission-modal">
-          <h2>需要权限</h2>
-          <p>当前环境缺少远程控制必需权限：</p>
+          <h2>{missingIsNativeModule ? '需要修复运行环境' : '需要权限'}</h2>
+          <p>{missingIsNativeModule ? '当前环境缺少远程控制所需的原生模块：' : '当前环境缺少远程控制必需权限：'}</p>
 
           <div className="permission-list">
             {missingPermissions.map((permission) => (
@@ -58,7 +61,7 @@ export function PermissionGate({ children, blocking = true }) {
 
           <div className="permission-actions">
             <button className="retry-btn" onClick={() => openSystemPreferences(primaryPermission)}>
-              {platform === 'darwin' ? '打开系统设置' : '查看说明'}
+              {platform === 'darwin' && !missingIsNativeModule ? '打开系统设置' : '查看说明'}
             </button>
           </div>
         </div>

@@ -10,8 +10,10 @@
     "dev:electron": "wait-on tcp:5173 && cross-env NODE_ENV=development electron .",
     "build": "vite build && electron-builder",
     "lint": "eslint .",
+    "rebuild": "electron-rebuild -f -w robotjs",
     "test": "node --test src/**/*.test.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",
