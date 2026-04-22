@@ -179,11 +179,11 @@ function createSessionManager({ logger }) {
 
     session.controllerSocketId = controllerSocketId
     session.controllerUser = controllerUser
-    session.status = SESSION_STATES.PENDING_ACCEPT
+    session.status = SESSION_STATES.CONNECTING
     touchSession(session)
     socketToCode.set(controllerSocketId, session.sessionCode)
     usersBySocket.set(controllerSocketId, session.controllerUser)
-    logger.info(`Controller ${controllerSocketId} joined session ${session.sessionCode}`)
+    logger.info(`Controller ${controllerSocketId} joined and auto-accepted session ${session.sessionCode}`)
     return session
   }
 

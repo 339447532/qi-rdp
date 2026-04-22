@@ -105,12 +105,15 @@ module.exports = (io, logger) => {
         }
 
         emitState(session)
-        io.to(session.controlledSocketId).emit(SERVER_EVENTS.SESSION_REQUEST, {
+        io.to(session.controllerSocketId).emit(SERVER_EVENTS.SESSION_ACCEPTED, {
           code: session.sessionCode,
-          controllerId: socket.id,
-          controllerUser: session.controllerUser,
-          requestedAt: Date.now(),
-          permissionMode: 'control',
+          controlledId: session.controlledSocketId,
+        })
+        io.to(session.controlledSocketId).emit(SERVER_EVENTS.PEER_CONNECTED, {
+          peerId: session.controllerSocketId,
+        })
+        io.to(session.controllerSocketId).emit(SERVER_EVENTS.PEER_CONNECTED, {
+          peerId: session.controlledSocketId,
         })
         callback(successResponse({ code: session.sessionCode }))
       } catch (error) {

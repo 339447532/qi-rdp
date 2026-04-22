@@ -21,13 +21,13 @@ test('creates a waiting session for the controlled side', () => {
   assert.match(session.sessionCode, /^\d{6}$/)
 })
 
-test('marks session pending accept when controller joins', () => {
+test('marks session connecting immediately when controller joins with a valid passcode', () => {
   const manager = createSessionManager({ logger: createLogger() })
   const created = manager.createSession('controlled-1')
   const joined = manager.joinSession(created.sessionCode, 'controller-1')
 
   assert.equal(joined.controllerSocketId, 'controller-1')
-  assert.equal(joined.status, SESSION_STATES.PENDING_ACCEPT)
+  assert.equal(joined.status, SESSION_STATES.CONNECTING)
 })
 
 test('requires valid passcode when joining protected session', () => {
@@ -43,6 +43,7 @@ test('requires valid passcode when joining protected session', () => {
 
   const joined = manager.joinSession(created.sessionCode, 'controller-1', { passcode: '654321' })
   assert.equal(joined.controllerSocketId, 'controller-1')
+  assert.equal(joined.status, SESSION_STATES.CONNECTING)
 })
 
 test('blocks guest controller when session requires authentication', () => {
