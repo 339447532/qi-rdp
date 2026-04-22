@@ -6,7 +6,11 @@ import { decodeCommand } from '../lib/controlProtocol'
 import { sessionEvents } from '../lib/sessionEvents'
 
 function getIceServers() {
-  const fallback = [{ urls: 'stun:stun.l.google.com:19302' }]
+  const fallback = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+  ]
   const raw = import.meta.env.VITE_ICE_SERVERS
 
   if (!raw) {
@@ -106,7 +110,7 @@ export function usePeerSession({ onData, onStream, onConnected, onDisconnected, 
 
     const peer = new SimplePeer({
       initiator: true,
-      trickle: false,
+      trickle: true,
       stream,
       config: { iceServers: getIceServers() },
     })
@@ -121,7 +125,7 @@ export function usePeerSession({ onData, onStream, onConnected, onDisconnected, 
 
     const peer = new SimplePeer({
       initiator: false,
-      trickle: false,
+      trickle: true,
       config: { iceServers: getIceServers() },
     })
 
