@@ -1,0 +1,354 @@
+const { app, BrowserWindow, clipboard, desktopCapturer, ipcMain, screen, shell, systemPreferences } = require('electron')
+const fs = require('fs/promises')
+const path = require('path')
+
+let robot
+try {
+  robot = require('robotjs')
+} catch (error) {
+  console.error('Failed to load robotjs in Main Process:', error)
+}
+
+function logInfo(message, payload) {
+  console.log(`[electron] ${message}`, payload || '')
+}
+
+function logError(message, error) {
+  console.error(`[electron] ${message}`, error)
+}
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
+    },
+  })
+
+  if (process.env.NODE_ENV === 'development') {
+    win.loadURL('http://localhost:5173')
+    win.webContents.openDevTools()
+  } else {
+    win.loadFile(path.join(__dirname, '../dist/index.html'))
+  }
+
+  return win
+}
+
+function buildPermissionResult({
+  key,
+  label,
+  granted,
+  supported = true,
+  canPrompt = false,
+  platform = process.platform,
+  openTarget = 'privacy',
+  message = '',
+}) {
+  return {
+    key,
+    label,
+    granted,
+    supported,
+    canPrompt,
+    platform,
+    openTarget,
+    message,
+  }
+}
+
+async function getScreenSources() {
+  const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 320, height: 200 } })
+  return sources.map((source) => ({
+    id: source.id,
+    name: source.name,
+    thumbnail: source.thumbnail.toDataURL(),
+    displayId: source.display_id,
+  }))
+}
+
+function serializeDisplay(display) {
+  if (!display) return null
+  return {
+    id: String(display.id),
+    label: display.label,
+    bounds: display.bounds,
+    workArea: display.workArea,
+    scaleFactor: display.scaleFactor,
+    rotation: display.rotation,
+    isPrimary: display.id === screen.getPrimaryDisplay().id,
+  }
+}
+
+async function checkScreenRecordingPermission() {
+  if (process.platform === 'darwin') {
+    try {
+      const status = systemPreferences.getMediaAccessStatus('screen')
+      const granted = status === 'granted'
+      return buildPermissionResult({
+        key: 'screen-recording',
+        label: '屏幕录制',
+        granted,
+        openTarget: 'screen-recording',
+        message: granted
+          ? 'macOS 屏幕录制权限已授权。'
+          : 'macOS 未授予屏幕录制权限，请前往系统设置开启。',
+      })
+    } catch (error) {
+      logError('Failed to check screen recording permission', error)
+    }
+  }
+
+  return buildPermissionResult({
+    key: 'screen-recording',
+    label: '屏幕录制',
+    granted: true,
+    message:
+      process.platform === 'win32'
+        ? 'Windows 通常无需额外授权，但请确认系统或安全软件未拦截。'
+        : 'Linux 若使用 Wayland，请确认桌面环境允许屏幕共享。',
+  })
+}
+
+function checkAccessibilityPermission() {
+  if (process.platform === 'darwin') {
+    const granted = typeof systemPreferences.isTrustedAccessibilityClient === 'function'
+      ? systemPreferences.isTrustedAccessibilityClient(false)
+      : false
+
+    return buildPermissionResult({
+      key: 'accessibility',
+      label: '辅助功能',
+      granted,
+      canPrompt: true,
+      openTarget: 'accessibility',
+      message: granted
+        ? 'macOS 辅助功能权限已授权。'
+        : 'macOS 未授予辅助功能权限，远程输入控制将无法生效。',
+    })
+  }
+
+  return buildPermissionResult({
+    key: 'accessibility',
+    label: '输入控制',
+    granted: Boolean(robot),
+    supported: Boolean(robot),
+    message: robot
+      ? '当前平台无需单独系统授权，但仍可能受系统策略限制。'
+      : '当前环境未能加载 robotjs，无法执行远程输入控制。',
+  })
+}
+
+async function checkAllPermissions() {
+  return {
+    success: true,
+    platform: process.platform,
+    permissions: {
+      screenRecording: await checkScreenRecordingPermission(),
+      accessibility: checkAccessibilityPermission(),
+    },
+  }
+}
+
+function normalizeButton(button = 'left') {
+  if (button === 1 || button === 'middle') return 'middle'
+  if (button === 2 || button === 'right') return 'right'
+  return 'left'
+}
+
+function normalizeKey(key) {
+  const keyMap = {
+    Enter: 'enter',
+    Tab: 'tab',
+    Escape: 'escape',
+    Esc: 'escape',
+    Backspace: 'backspace',
+    Delete: 'delete',
+    ArrowUp: 'up',
+    ArrowDown: 'down',
+    ArrowLeft: 'left',
+    ArrowRight: 'right',
+    Control: 'control',
+    Shift: 'shift',
+    Alt: 'alt',
+    Meta: process.platform === 'darwin' ? 'command' : 'control',
+    CapsLock: 'capslock',
+    Home: 'home',
+    End: 'end',
+    PageUp: 'pageup',
+    PageDown: 'pagedown',
+    ' ': 'space',
+  }
+
+  if (keyMap[key]) {
+    return keyMap[key]
+  }
+
+  if (typeof key === 'string' && key.length === 1) {
+    return key.toLowerCase()
+  }
+
+  return String(key || '').toLowerCase()
+}
+
+function mapNormalizedPosition(x = 0, y = 0) {
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const bounds = primaryDisplay.bounds
+  return {
+    x: Math.round(bounds.x + Math.max(0, Math.min(1, x)) * (bounds.width - 1)),
+    y: Math.round(bounds.y + Math.max(0, Math.min(1, y)) * (bounds.height - 1)),
+  }
+}
+
+function executeRemoteControl(command) {
+  if (!robot) {
+    return { success: false, error: 'CONTROL_UNAVAILABLE', message: 'robotjs 未加载，无法执行远程控制。' }
+  }
+
+  try {
+    switch (command.type) {
+      case 'mouse:move': {
+        const point = mapNormalizedPosition(command.x, command.y)
+        robot.moveMouse(point.x, point.y)
+        return { success: true }
+      }
+      case 'mouse:down':
+        robot.mouseToggle('down', normalizeButton(command.button))
+        return { success: true }
+      case 'mouse:up':
+        robot.mouseToggle('up', normalizeButton(command.button))
+        return { success: true }
+      case 'mouse:click': {
+        const point = mapNormalizedPosition(command.x, command.y)
+        robot.moveMouse(point.x, point.y)
+        robot.mouseClick(normalizeButton(command.button), false)
+        return { success: true }
+      }
+      case 'mouse:wheel':
+        robot.scrollMouse(Math.round(command.deltaX || 0), Math.round(command.deltaY || 0))
+        return { success: true }
+      case 'keyboard:down':
+        robot.keyToggle(normalizeKey(command.key), 'down')
+        return { success: true }
+      case 'keyboard:up':
+        robot.keyToggle(normalizeKey(command.key), 'up')
+        return { success: true }
+      case 'keyboard:tap':
+        robot.keyTap(normalizeKey(command.key))
+        return { success: true }
+      default:
+        return {
+          success: false,
+          error: 'UNKNOWN_CONTROL_EVENT',
+          message: `未支持的控制事件: ${command.type}`,
+        }
+    }
+  } catch (error) {
+    logError('Remote control execution failed', error)
+    return {
+      success: false,
+      error: 'CONTROL_EXECUTION_FAILED',
+      message: error.message || '远程控制执行失败。',
+    }
+  }
+}
+
+async function saveIncomingFile(file) {
+  const fileName = String(file?.name || 'received-file').replace(/[\\/]/g, '_')
+  const downloadsDir = app.getPath('downloads')
+  const targetPath = path.join(downloadsDir, fileName)
+  const buffer = Buffer.from(file?.contentBase64 || '', 'base64')
+  await fs.writeFile(targetPath, buffer)
+  return {
+    success: true,
+    path: targetPath,
+    size: buffer.length,
+  }
+}
+
+app.whenReady().then(() => {
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    }
+  })
+
+  ipcMain.handle('screen:getSources', async () => {
+    try {
+      const sources = await getScreenSources()
+      logInfo('Fetched screen sources', { count: sources.length })
+      return { success: true, sources }
+    } catch (error) {
+      logError('Failed to get screen sources', error)
+      return { success: false, sources: [], message: error.message || '获取屏幕源失败。' }
+    }
+  })
+
+  ipcMain.handle('screen:getDisplays', async () => ({
+    success: true,
+    displays: screen.getAllDisplays().map(serializeDisplay),
+  }))
+
+  ipcMain.handle('screen:getPrimaryDisplay', async () => ({
+    success: true,
+    display: serializeDisplay(screen.getPrimaryDisplay()),
+  }))
+
+  ipcMain.handle('control:execute', async (_, command) => executeRemoteControl(command))
+  ipcMain.handle('clipboard:readText', async () => ({
+    success: true,
+    text: clipboard.readText(),
+  }))
+  ipcMain.handle('clipboard:writeText', async (_, text = '') => {
+    clipboard.writeText(String(text))
+    return { success: true }
+  })
+  ipcMain.handle('file:saveIncoming', async (_, file) => {
+    try {
+      return await saveIncomingFile(file)
+    } catch (error) {
+      logError('Failed to save incoming file', error)
+      return { success: false, message: error.message || '保存文件失败。' }
+    }
+  })
+  ipcMain.handle('permission:checkAll', checkAllPermissions)
+  ipcMain.handle('permission:checkScreenRecording', checkScreenRecordingPermission)
+  ipcMain.handle('permission:checkAccessibility', async () => checkAccessibilityPermission())
+
+  ipcMain.handle('permission:openSystemSettings', async (_, permissionType = 'privacy') => {
+    if (process.platform !== 'darwin') {
+      return {
+        success: false,
+        message:
+          process.platform === 'win32'
+            ? 'Windows 没有统一权限页，请检查系统安全设置和安全软件。'
+            : 'Linux 没有统一权限页，请检查桌面环境、Wayland/X11 或沙箱权限。',
+      }
+    }
+
+    const urls = {
+      'screen-recording': 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
+      accessibility: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+      privacy: 'x-apple.systempreferences:com.apple.preference.security?Privacy',
+    }
+
+    try {
+      await shell.openExternal(urls[permissionType] || urls.privacy)
+      return { success: true }
+    } catch (error) {
+      logError('Failed to open system settings', error)
+      return { success: false, message: error.message || '打开系统设置失败。' }
+    }
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})

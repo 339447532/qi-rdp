@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+build/
+out/
+release/
+coverage/
+*.tsbuildinfo
+
+# Electron / Vite artifacts
+client/dist/
+client/dist-ssr/
+client/out/
+client/release/
+client/.vite/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+*.local
+
+# Runtime files
+*.pid
+*.pid.lock
+*.seed
+
+# Cache directories
+.cache/
+.eslintcache
+.parcel-cache/
+
+# IDE / OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
