@@ -25,8 +25,14 @@ export function useSessionState() {
   const [incomingRequest, setIncomingRequest] = useState(null)
   const [sessionMeta, setSessionMeta] = useState(null)
   const cleanupRef = useRef(null)
+  const hasCreatedSessionRef = useRef(false)
 
   const createHostSession = useCallback(() => {
+    if (hasCreatedSessionRef.current) {
+      return
+    }
+
+    hasCreatedSessionRef.current = true
     socket.emit(CLIENT_EVENTS.SESSION_CREATE, (response) => {
       if (response?.success && response.code) {
         setHostCode(response.code)
@@ -35,6 +41,7 @@ export function useSessionState() {
         setState(SESSION_STATES.WAITING)
         setError(null)
       } else {
+        hasCreatedSessionRef.current = false
         setError(mapError(response?.error))
         setState(SESSION_STATES.ERROR)
       }
@@ -42,23 +49,38 @@ export function useSessionState() {
   }, [])
 
   useEffect(() => {
-    socket.connect()
-
     const handleConnect = () => {
       createHostSession()
     }
 
     const handleDisconnect = () => {
+      hasCreatedSessionRef.current = false
       setState((previous) => (previous === SESSION_STATES.IDLE ? previous : SESSION_STATES.DISCONNECTED))
+    }
+
+    const handleConnectError = (connectError) => {
+      hasCreatedSessionRef.current = false
+      setError(mapError({
+        code: ERROR_CODES.CONNECTION_FAILED,
+        message: connectError?.message || ERROR_MESSAGES[ERROR_CODES.CONNECTION_FAILED],
+      }))
+      setState(SESSION_STATES.ERROR)
     }
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
+    socket.on('connect_error', handleConnectError)
     cleanupRef.current = bindSocketToSessionEvents(socket)
+    socket.connect()
+
+    if (socket.connected) {
+      handleConnect()
+    }
 
     return () => {
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
+      socket.off('connect_error', handleConnectError)
       cleanupRef.current?.()
       sessionEvents.removeAllListeners()
       socket.disconnect()
@@ -198,6 +220,7 @@ export function useSessionState() {
   }, [activeCode])
 
   const resetForNextSession = useCallback(() => {
+    hasCreatedSessionRef.current = false
     setIncomingRequest(null)
     setRemoteId(null)
     setSessionMeta(null)

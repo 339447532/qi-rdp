@@ -2,7 +2,6 @@ import { AllowControlCard } from '../components/AllowControlCard'
 import { LoginModal } from '../components/LoginModal'
 import { RemoteControlCard } from '../components/RemoteControlCard'
 import { Sidebar } from '../components/Sidebar'
-import { PermissionGate } from '../components/PermissionGate'
 
 export function DashboardPage({ remoteControl }) {
   return (
@@ -23,8 +22,6 @@ export function DashboardPage({ remoteControl }) {
       />
 
       <div className="main-content">
-        <PermissionGate blocking={false} />
-
         <div className="session-banner">
           <div>
             <strong>{remoteControl.statusText}</strong>
