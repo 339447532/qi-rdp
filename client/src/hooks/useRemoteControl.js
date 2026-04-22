@@ -151,8 +151,10 @@ export function useRemoteControl() {
   const [requireAuth, setRequireAuth] = useState(false)
   const [shareAudio, setShareAudio] = useState(autoConnectCode ? autoConnectAudio : true)
   const [statusHint, setStatusHint] = useState('')
+  const [controllerRequestPending, setControllerRequestPending] = useState(false)
   const [remoteDisplay, setRemoteDisplay] = useState(null)
   const [localDisplay, setLocalDisplay] = useState(null)
+  const [remoteVideoReady, setRemoteVideoReady] = useState(false)
   const [clipboardText, setClipboardText] = useState('')
   const [transferStatus, setTransferStatus] = useState('')
   const [authState, setAuthState] = useState(() => loadStoredAuth())
@@ -245,10 +247,12 @@ export function useRemoteControl() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream
       }
+      setRemoteVideoReady(false)
     },
     onConnected: async () => {
       session.setWebRTCConnected()
       setStatusHint('')
+      setControllerRequestPending(false)
 
       if (session.role === ROLES.CONTROLLED) {
         const display = await getElectronDisplayInfo()
@@ -261,12 +265,15 @@ export function useRemoteControl() {
       if (videoRef.current) {
         videoRef.current.srcObject = null
       }
+      setControllerRequestPending(false)
+      setRemoteVideoReady(false)
       setRemoteDisplay(null)
       setLocalDisplay(null)
       setTransferStatus('')
       setStatusHint('')
     },
     onError: (error) => {
+      setControllerRequestPending(false)
       setStatusHint(error?.message || 'WebRTC 连接失败')
     },
   })
@@ -355,10 +362,10 @@ export function useRemoteControl() {
 
   const stateLabels = {
     [SESSION_STATES.WAITING]: '等待伙伴连接',
-    [SESSION_STATES.REQUESTING]: '等待受控端确认',
+    [SESSION_STATES.REQUESTING]: '正在发起连接请求',
     [SESSION_STATES.PENDING_ACCEPT]: '收到连接请求，等待你的决定',
     [SESSION_STATES.CONNECTING]: '正在建立远程连接',
-    [SESSION_STATES.CONNECTED]: '屏幕共享中',
+    [SESSION_STATES.CONNECTED]: '共享中',
     [SESSION_STATES.CONTROLLING]: '远程控制中',
     [SESSION_STATES.DISCONNECTED]: '连接已断开，可重新发起连接',
     [SESSION_STATES.ERROR]: session.error?.message || '发生错误',
@@ -500,8 +507,13 @@ export function useRemoteControl() {
     setLocalDisplay(null)
     setTransferStatus('')
     setStatusHint('')
+    setControllerRequestPending(false)
+    setRemoteVideoReady(false)
+    if (windowMode === 'main') {
+      window.electron?.window?.closeController?.()
+    }
     window.electron?.window?.closeControlledOverlay?.()
-  }, [peer, session])
+  }, [peer, session, windowMode])
 
   useEffect(() => {
     if (isOverlayWindow) {
@@ -530,7 +542,6 @@ export function useRemoteControl() {
     }
 
     window.electron?.window?.updateControlledOverlay?.({
-      collapsed: false,
       statusText,
       currentUser: session.sessionMeta?.controlledUser?.name || currentUser?.name || '访客用户',
       displayText: `${localDisplay?.bounds?.width || '--'} × ${localDisplay?.bounds?.height || '--'}`,
@@ -588,12 +599,13 @@ export function useRemoteControl() {
     if (!rawCode) return
 
     if (windowMode === 'main') {
+      setControllerRequestPending(true)
       window.electron?.window?.openController?.({
         code: rawCode,
         passcode: remoteCheckCode,
         shareAudio,
       })
-      setStatusHint(`已发起到 ${formatCode(rawCode)} 的连接请求，等待受控端确认`)
+      setStatusHint(`正在连接 ${formatCode(rawCode)}`)
       return
     }
 
@@ -719,6 +731,7 @@ export function useRemoteControl() {
     shareAudio,
     requireAuth,
     currentUser,
+    controllerRequestPending,
     isAuthenticated: Boolean(authState?.token),
     recentConnections: [...(currentUser?.recentConnections || [])].sort((a, b) => {
       if (a.favorite !== b.favorite) {
@@ -734,6 +747,7 @@ export function useRemoteControl() {
     videoRef,
     localDisplay,
     remoteDisplay,
+    remoteVideoReady,
     copyMyCode,
     disconnect,
     handleLogin,
@@ -741,6 +755,7 @@ export function useRemoteControl() {
     handleMouseDown,
     handleMouseMove: sendPointerMove,
     handleMouseUp,
+    setRemoteVideoReady,
     handleRemoteCodeChange,
     selectRecentConnection,
     toggleFavoriteConnection,

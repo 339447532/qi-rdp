@@ -824,17 +824,16 @@ button {
   width: 100vw;
   min-height: 100vh;
   box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: 22px;
+  padding: 4px 5px;
+  border-radius: 14px;
   background:
-    linear-gradient(135deg, rgba(24, 29, 37, 0.96), rgba(11, 14, 19, 0.92)),
+    linear-gradient(135deg, rgba(18, 23, 31, 0.97), rgba(10, 13, 18, 0.94)),
     rgba(12, 14, 18, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none;
   color: #fff;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  align-items: center;
+  box-shadow: none;
   -webkit-app-region: drag;
 }
 
@@ -842,66 +841,105 @@ button {
   -webkit-app-region: no-drag;
 }
 
-.controlled-overlay.collapsed {
-  min-height: 64px;
-  justify-content: center;
-  padding: 8px 10px;
-}
-
-.controlled-overlay__toggle {
-  align-self: flex-end;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.74);
-  background: rgba(255, 255, 255, 0.08);
-  cursor: pointer;
+.controlled-overlay__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .controlled-overlay__status {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.controlled-overlay__status strong,
-.controlled-overlay__status span,
-.controlled-overlay__summary strong {
-  display: block;
+  gap: 7px;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .controlled-overlay__status strong,
 .controlled-overlay__summary strong {
-  font-size: 13px;
-}
-
-.controlled-overlay__status span,
-.controlled-overlay__meta {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.controlled-overlay__summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .controlled-overlay__meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .controlled-overlay__stop {
-  width: 100%;
   border-radius: 999px;
-  padding: 8px 10px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(135deg, #ff5f78, #ff4068);
   color: #fff;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.controlled-overlay__user {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.controlled-overlay__actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.controlled-overlay__stop svg {
+  width: 14px;
+  height: 14px;
+}
+
+.controlled-overlay .status-indicator {
+  width: 9px;
+  height: 9px;
+  box-shadow: 0 0 0 5px rgba(82, 196, 26, 0.14);
+}
+
+.remote-stage {
+  position: relative;
+}
+
+.remote-stage__placeholder {
+  position: absolute;
+  inset: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 36%),
+    linear-gradient(180deg, rgba(8, 10, 14, 0.96), rgba(4, 6, 9, 0.98));
+  color: #fff;
+  text-align: center;
+  padding: 20px;
+  z-index: 1;
+}
+
+.remote-stage__placeholder strong {
+  font-size: 20px;
+}
+
+.remote-stage__placeholder span {
+  max-width: 420px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
 }
 
 .controller-pending {

@@ -4,12 +4,18 @@ import { RemoteSessionPage } from './pages/RemoteSessionPage'
 import { SESSION_STATES, ROLES } from './lib/protocol'
 import { useEffect, useState } from 'react'
 
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="9" height="9" rx="2.2" fill="currentColor" />
+    </svg>
+  )
+}
+
 function ControlledOverlayApp() {
   const [overlayState, setOverlayState] = useState({
-    collapsed: false,
     statusText: '屏幕共享中',
     currentUser: '--',
-    displayText: '-- × --',
   })
 
   useEffect(() => {
@@ -26,40 +32,26 @@ function ControlledOverlayApp() {
   }, [])
 
   return (
-    <div className={`controlled-overlay ${overlayState.collapsed ? 'collapsed' : ''}`}>
-      <button
-        className="controlled-overlay__toggle"
-        onClick={() => setOverlayState((previous) => ({ ...previous, collapsed: !previous.collapsed }))}
-      >
-        {overlayState.collapsed ? '展开' : '折叠'}
-      </button>
-
-      {overlayState.collapsed ? (
-        <div className="controlled-overlay__summary">
+    <div className="controlled-overlay">
+      <div className="controlled-overlay__row">
+        <div className="controlled-overlay__status">
           <span className="status-indicator"></span>
-          <strong>共享中</strong>
+          <strong>{String(overlayState.statusText || '共享中').replace('屏幕共享中', '共享中')}</strong>
         </div>
-      ) : (
-        <>
-          <div className="controlled-overlay__status">
-            <span className="status-indicator"></span>
-            <div>
-              <strong>{overlayState.statusText}</strong>
-              <span>{overlayState.currentUser}</span>
-            </div>
-          </div>
-          <div className="controlled-overlay__meta">
-            <span>账号 {overlayState.currentUser}</span>
-            <span>{overlayState.displayText}</span>
-          </div>
+        <div className="controlled-overlay__meta">
+          <span className="controlled-overlay__user">{overlayState.currentUser}</span>
+        </div>
+        <div className="controlled-overlay__actions">
           <button
             className="controlled-overlay__stop"
             onClick={() => window.electron?.window?.requestDisconnectFromOverlay?.()}
+            aria-label="停止共享"
+            title="停止共享"
           >
-            停止共享
+            <StopIcon />
           </button>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -83,7 +75,11 @@ function MainApp() {
         <div className="controller-pending__card">
           <span className="controller-pending__eyebrow">控制窗口</span>
           <strong>{remoteControl.statusText}</strong>
-          <p>正在等待受控端确认并建立远程控制连接，连接成功后会自动显示远程桌面。</p>
+          <p>
+            {remoteControl.controllerRequestPending
+              ? '连接请求已发出，正在等待远端设备响应并建立远程画面。'
+              : '正在准备控制窗口，连接成功后会自动显示远程桌面。'}
+          </p>
           <div className="controller-pending__actions">
             <button className="disconnect-btn" onClick={remoteControl.disconnect}>
               停止连接

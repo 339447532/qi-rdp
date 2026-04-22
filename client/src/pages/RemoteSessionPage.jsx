@@ -13,7 +13,9 @@ export function RemoteSessionPage({ remoteControl }) {
     statusText,
     transferStatus,
     remoteDisplay,
+    remoteVideoReady,
     currentUser,
+    setRemoteVideoReady,
   } = remoteControl
 
   return (
@@ -46,11 +48,19 @@ export function RemoteSessionPage({ remoteControl }) {
         </span>
       </div>
       <div className="remote-stage">
+        {!remoteVideoReady ? (
+          <div className="remote-stage__placeholder">
+            <strong>正在接收远端画面</strong>
+            <span>如果长时间仍是黑屏，请检查受控端屏幕录制权限与共享状态。</span>
+          </div>
+        ) : null}
         <video
           ref={videoRef}
           autoPlay
           playsInline
           className="remote-video"
+          onLoadedMetadata={() => setRemoteVideoReady(true)}
+          onCanPlay={() => setRemoteVideoReady(true)}
           onMouseMove={handleMouseMove}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}

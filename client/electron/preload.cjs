@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electron', {
     openController: (payload) => ipcRenderer.invoke('window:openController', payload),
     closeCurrent: () => ipcRenderer.invoke('window:closeCurrent'),
     showCurrent: () => ipcRenderer.invoke('window:showCurrent'),
+    closeController: () => ipcRenderer.invoke('window:closeController'),
     openControlledOverlay: () => ipcRenderer.invoke('window:openControlledOverlay'),
     closeControlledOverlay: () => ipcRenderer.invoke('window:closeControlledOverlay'),
     updateControlledOverlay: (payload) => ipcRenderer.invoke('window:updateControlledOverlay', payload),

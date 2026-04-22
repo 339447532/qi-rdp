@@ -181,12 +181,12 @@ function createControlledOverlayWindow() {
   }
 
   controlledOverlayWindow = new BrowserWindow({
-    width: 280,
-    height: 112,
-    minWidth: 220,
-    minHeight: 64,
-    maxWidth: 320,
-    maxHeight: 132,
+    width: 228,
+    height: 44,
+    minWidth: 176,
+    minHeight: 40,
+    maxWidth: 280,
+    maxHeight: 56,
     frame: false,
     resizable: false,
     movable: true,
@@ -546,6 +546,14 @@ app.whenReady().then(() => {
     const target = BrowserWindow.fromWebContents(event.sender)
     target?.show()
     target?.focus()
+    return { success: true }
+  })
+
+  ipcMain.handle('window:closeController', async () => {
+    if (controllerWindow && !controllerWindow.isDestroyed()) {
+      controllerWindowAllowClose = true
+      controllerWindow.close()
+    }
     return { success: true }
   })
 
